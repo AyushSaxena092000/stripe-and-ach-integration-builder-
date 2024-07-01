@@ -1,0 +1,125 @@
+import React, { useState, FormEvent } from 'react';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, useStripe, useElements, ElementsConsumer } from '@stripe/react-stripe-js';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Select, FormControl, InputLabel } from '@material-ui/core';
+
+const stripePromise = loadStripe('pk_test_XXXXXXXXXXXXXXXXXXXXXX');
+
+const bankNames = [
+  "Bank of America", "Chase", "Wells Fargo", "Citi", "Capital One", "PNC Bank", 
+  "US Bank", "TD Bank", "BB&T", "SunTrust", "Fifth Third Bank", "HSBC", 
+  "Charles Schwab", "Ally Bank", "KeyBank", "Regions Bank", "Santander Bank", 
+  "BMO Harris Bank", "Huntington Bank", "M&T Bank", "Citizens Bank", 
+  "American Express", "Navy Federal Credit Union", "USAA", "Synchrony Bank", 
+  "Comerica", "Zions Bank", "First Republic Bank", "Silicon Valley Bank", 
+  "Discover Bank"
+];
+
+const AchPaymentModal: React.FC = () => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isOpen, setIsOpen] = useState(false);
+  const [accountHolderName, setAccountHolderName] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [accountType, setAccountType] = useState('');
+  const [routingNumber, setRoutingNumber] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+
+  const handleOpenModal = () => setIsOpen(true);
+  const handleCloseModal = () => setIsOpen(false);
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!stripe || !elements) {
+      console.error('Stripe.js not loaded');
+      return;
+    }
+
+    const result = await stripe.confirmAchPayment({
+      payment_method: {
+        ach_debit: {
+          account_holder_name: accountHolderName,
+          account_holder_type: accountType === 'individual' ? 'individual' : 'company',
+          routing_number: routingNumber,
+          account_number: accountNumber,
+        },
+      },
+    });
+
+    if (result.error) {
+      console.error('Payment failed:', result.error.message);
+    } else {
+      console.log('Payment succeeded:', result.paymentIntent);
+    }
+  };
+
+  return (
+    <Elements stripe={stripePromise}>
+      <div>
+        <Button onClick={handleOpenModal}>Open ACH Modal</Button>
+        <Dialog open={isOpen} onClose={handleCloseModal}>
+          <DialogTitle>ACH Payment Form</DialogTitle>
+          <DialogContent>
+            <form onSubmit={handleSubmit}>
+              <TextField
+                label="Full Name"
+                variant="outlined"
+                fullWidth
+                margin="normal"
+                value={accountHolderName}
+                onChange={(e) => setAccountHolderName(e.target.value)}
+              />
+              <FormControl variant="outlined" fullWidth margin="normal">
+                <InputLabel>Bank Name</InputLabel>
+                <Select
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value as string)}
+                  label="Bank Name"
+                >
+                  {bankNames.map((bank) => (
+                    <MenuItem key={bank} value={bank}>{bank}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <TextField
+                label="Routing Number"
+                variant="outlined"
+                fullWidth
+                margin="normal"
+                value={routingNumber}
+                onChange={(e) => setRoutingNumber(e.target.value)}
+              />
+              <TextField
+                label="Account Number"
+                variant="outlined"
+                fullWidth
+                margin="normal"
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value)}
+              />
+              <FormControl variant="outlined" fullWidth margin="normal">
+                <InputLabel>Account Type</InputLabel>
+                <Select
+                  value={accountType}
+                  onChange={(e) => setAccountType(e.target.value as string)}
+                  label="Account Type"
+                >
+                  <MenuItem value="individual">Individual</MenuItem>
+                  <MenuItem value="company">Company</MenuItem>
+                </Select>
+              </FormControl>
+            </form>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseModal} color="secondary">Cancel</Button>
+            <Button onClick={handleSubmit} color="primary">Purchase</Button>
+          </DialogActions>
+        </Dialog>
+      </div>
+    </Elements>
+  );
+};
+
+export default AchPaymentModal;
+
